@@ -13,7 +13,7 @@ import time
 #------------------------------------------------------------------------------#
 #                          Import local libraries/code                         #
 #------------------------------------------------------------------------------#
-from RedisMessageExchange.RedisMessageExchange import (
+from redisxchange.RedisMessageExchange import (
     RedisPubSubMessageExchange,
     RedisQueueMessageExchange,
     FutureSet,
