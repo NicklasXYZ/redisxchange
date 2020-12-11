@@ -6,7 +6,7 @@ setup(
     author = "Nicklas Sindlev Andersen",
     packages = ["redisxchange"],
     include_package_data = True,
-    install_requires = ["msgpack", "redis-py"],
+    install_requires = ["msgpack", "redis"],
     version = "0.1",
     license = "MIT",
     description = "",
