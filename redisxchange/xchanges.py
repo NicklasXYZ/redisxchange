@@ -764,7 +764,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                 is a result that should be returned to a producer. 
             name (str): The name of the queue. 
         """
-        v = True #async_to_sync(self.check_output_data)(message)
+        v = async_to_sync(self.check_output_data)(message)
         if v == True:
             # Publish the message
             self.kv_set(message, name)
@@ -843,12 +843,11 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         if not self.name is None:
             while True:
                 data = await sync_to_async(self.queue_pop)(self.name)
-                print("Data debug message: ", data)
                 if not data is None:
                     # Load the data: bytes --> dict
                     data = await sync_to_async(load)(data)
                     # Process the data
-                    self.receive(data)
+                    await self.receive(data)
                 else:
                     logging.warning(
                         "The data taken from the queue had value None!"
