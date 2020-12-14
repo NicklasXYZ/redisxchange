@@ -342,7 +342,6 @@ class RedisMessageExchange:
                 )
             time.sleep(self.wait_time)
     
-    @abc.abstractmethod
     def check_input_data(self, data: dict) -> bool:
         """ Check/validate data before it is passed on for further processing. 
 
@@ -354,9 +353,8 @@ class RedisMessageExchange:
                 is returned.
         """
         # This method should be implemented in a subclass
-        pass
+        return True
 
-    @abc.abstractmethod
     def check_output_data(self, data: dict) -> bool:
         """ Check/validate data before it is passed on for further processing. 
 
@@ -368,7 +366,7 @@ class RedisMessageExchange:
                 is returned.
         """
         # This method should be implemented in a subclass
-        pass
+        return True
 
     def _check_input_data(self, data: dict) -> bool:
         """ Run a number of internal and external user-defined checks on the
@@ -564,34 +562,6 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
         return message
 
     @abc.abstractmethod
-    def check_input_data(self, data: dict) -> bool:
-        """ Check/validate data before it is passed on for further processing. 
-
-        Args:
-            data (dict): Input data to be handled by a consumer.
-
-        Returns:
-            bool: Returns 'True' if all checks have passed, otherwise 'False'
-                is returned.
-        """
-        # This method should be implemented in a subclass
-        pass
-
-    @abc.abstractmethod
-    def check_output_data(self, data: dict) -> bool:
-        """ Check/validate data before it is passed on for further processing. 
-
-        Args:
-            data (dict): Output data to be returned to a producer.
-
-        Returns:
-            bool: Returns 'True' if all checks have passed, otherwise 'False'
-                is returned.
-        """
-        # This method should be implemented in a subclass
-        pass
-
-    @abc.abstractmethod
     async def receive(self, data):
         # This method should be implemented in a subclass
         pass
@@ -764,7 +734,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                 is a result that should be returned to a producer. 
             name (str): The name of the queue. 
         """
-        v = async_to_sync(self.check_output_data)(message)
+        v = self.check_output_data(message)
         if v == True:
             # Publish the message
             self.kv_set(message, name)
@@ -793,34 +763,6 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         self.publish(message, name)
         # Get and return the result
         return self.kv_get(name, message)
-
-    @abc.abstractmethod
-    def check_input_data(self, data: dict) -> bool:
-        """ Check/validate data before it is passed on for further processing. 
-
-        Args:
-            data (dict): Input data to be handled by a consumer.
-
-        Returns:
-            bool: Returns 'True' if all checks have passed, otherwise 'False'
-                is returned.
-        """
-        # This method should be implemented in a subclass
-        pass
-
-    @abc.abstractmethod
-    def check_output_data(self, data: dict) -> bool:
-        """ Check/validate data before it is passed on for further processing. 
-
-        Args:
-            data (dict): Output data to be returned to a producer.
-
-        Returns:
-            bool: Returns 'True' if all checks have passed, otherwise 'False'
-                is returned.
-        """
-        # This method should be implemented in a subclass
-        pass
 
     @abc.abstractmethod
     async def receive(self, data):
