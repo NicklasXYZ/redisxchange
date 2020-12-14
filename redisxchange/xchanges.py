@@ -712,12 +712,13 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         key = self._get_key(name) 
         return self.client.lrange(key, start, end)
 
-    def queue_pop(self, name: str, timeout: int = 5):
+    def queue_pop(self, name: str, timeout: Union[None, int] = None):
         """ Retrieve and remove an item at the head of the queue. 
 
         Args:
             name (str): The name of the queue.
-            timeout (int, optional): The max amount of time to . Defaults to 5.
+            timeout (Union[None, str], optional): The max amount of time to.
+                Defaults to 5.
 
         Returns:
             dict: The item removed from the queue.
