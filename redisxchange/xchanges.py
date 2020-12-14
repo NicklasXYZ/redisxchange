@@ -734,7 +734,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                 is a result that should be returned to a producer. 
             name (str): The name of the queue. 
         """
-        v = self.check_output_data(message)
+        v = self._check_output_data(message)
         if v == True:
             # Publish the message
             self.kv_set(message, name)
