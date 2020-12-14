@@ -94,7 +94,7 @@ def dump(message: Union[None, dict]) -> bytes:
 class RedisMessageExchange:
     def __init__(
             self, host = "localhost", port = "6379", db = 1,
-            timeout = 5, max_try = 5, wait_time = 0.001, ttl = 10,
+            timeout = 5, max_try = 5, wait_time = 0.001, ttl = 5,
         ) -> None:
         """Initialize and set given class variables on class instantiation. 
 
@@ -596,27 +596,39 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
         # This method should be implemented in a subclass
         pass
 
-    def handle(self) -> None:
+    @abc.abstractmethod
+    async def pre_handle(self):
+        # This method should be implemented in a subclass
+        pass
+
+    @abc.abstractmethod
+    async def post_handle(self):
+        # This method should be implemented in a subclass
+        pass
+
+    async def handle(self) -> None:
         """ Keep handling incoming messages...
 
         Returns:
             None: None.
         """
+        await self.pre_handle()
         while True:
-            message_data = self.consume()
+            message_data = await sync_to_async(self.consume)()
             if not message_data is None:
                 try:
                     # Load the data: bytes --> dict
-                    data = load(message_data["data"])
+                    data = await sync_to_async(load)(message_data["data"])
                     # Process the data
-                    async_to_sync(self.receive)(data)
+                    await self.receive(data)
                 except AttributeError as e:
                     print("Exception: ", e)
-                time.sleep(self.wait_time)
+                await asyncio.sleep(self.wait_time)
             else:
                 logging.warning(
                     "The data recived from the message broker had value None!"
                 )
+        await self.post_handle()
 
 
 #------------------------------------------------------------------------------#
@@ -815,17 +827,26 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         # This method should be inplemented in a subclass
         pass
 
-    def handle(self) -> None:
+    @abc.abstractmethod
+    async def pre_handle(self):
+        pass
+
+    @abc.abstractmethod
+    async def post_handle(self):
+        pass
+
+    async def handle(self) -> None:
         """ Keep handling incoming messages...
         """
+        await self.pre_handle()
         if not self.name is None:
             while True:
-                data = self.queue_pop(self.name)
+                data = await sync_to_async(self.queue_pop)(self.name)
                 if not data is None:
                     # Load the data: bytes --> dict
-                    data = load(data)
+                    data = await sync_to_async(load)(data)
                     # Process the data
-                    async_to_sync(self.receive)(data)
+                    self.receive(data)
                 else:
                     logging.warning(
                         "The data taken from the queue had value None!"
@@ -835,6 +856,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                 "No topic/named channel has been set! No data can thus be " + \
                 "read from the queue."
             )
+        await self.post_handle()
 
 
 #------------------------------------------------------------------------------#
