@@ -13,6 +13,6 @@ setup(
     version = "0.1",
     license = "MIT",
     description = "",
-    python_requires=">=3.8",
+    python_requires=">=3.7",
     long_description = open("README.md").read(),
 )
