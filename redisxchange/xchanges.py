@@ -393,11 +393,6 @@ class RedisMessageExchange:
                 "No 'message_uuid' field in given data!"
             )
             v1 = False
-        if not "message_timestamp" in data:
-            logging.debug(
-                "No 'message_timestamp' field in given data!"
-            )
-            v1 = False
         # Also run the additional checks that have been implemented in a 
         # subclass.
         v2 = self.check_input_data(data)
@@ -431,11 +426,6 @@ class RedisMessageExchange:
         if not "message_uuid" in data:
             logging.debug(
                 "No 'message_uuid' field in given data!"
-            )
-            v1 = False
-        if not "message_timestamp" in data:
-            logging.debug(
-                "No 'message_timestamp' field in given data!"
             )
             v1 = False
         # Also run the additional checks that have been implemented in a subclass.
@@ -756,9 +746,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
             Union[None, dict]: Return data.
         """
         self.message_uuid = str(uuid.uuid4())
-        self.message_timestamp = str(datetime.utcnow())
         message["message_uuid"] = self.message_uuid
-        message["message_timestamp"] = self.message_timestamp
         # Publish the message
         self.publish(message, name)
         # Get and return the result
