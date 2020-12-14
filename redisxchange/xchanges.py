@@ -843,6 +843,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         if not self.name is None:
             while True:
                 data = await sync_to_async(self.queue_pop)(self.name)
+                print("Data debug message: ", data)
                 if not data is None:
                     # Load the data: bytes --> dict
                     data = await sync_to_async(load)(data)
