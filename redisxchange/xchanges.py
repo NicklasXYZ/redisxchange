@@ -140,7 +140,7 @@ class RedisMessageExchange:
         self.check_base_args()
         # Finally, connect to the Redis server
         self.connect()
-    
+
     def check_base_args(self):
         """ Check and validate all class arguments on calss instantiation.
 
@@ -341,7 +341,7 @@ class RedisMessageExchange:
                     "The Redis server did not respond..."
                 )
             time.sleep(self.wait_time)
-    
+
     def check_input_data(self, data: dict) -> bool:
         """ Check/validate data before it is passed on for further processing. 
 
@@ -536,7 +536,7 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                 "No connection to the client has been established yet! " + \
                 "Try calling the RedisPubSubMessageExchange.connect() method."
             )
-    
+
     def consume(self) -> Dict[str, Any]:
         """ Pick up the next message in the stream...
         """
@@ -580,12 +580,12 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                     # Load the data: bytes --> dict
                     data = await sync_to_async(load)(message_data["data"])
                     # Check that the input data follows the correct format
-                    v = await self._check_input_data(data)
+                    v = await sync_to_async(self._check_input_data)(data)
                     if v == True:
                         # Process the data
                         await self.receive(data)
                     else:
-                        logging.error(
+                        logging.warning(
                             "Input data does not follow the correct format!",
                         )
                 except AttributeError as e:
@@ -739,7 +739,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
             logging.warning(
                 "The given data does not follow the correct format!"
             )
-      
+
     def publish_get(self, message: dict, name: str) -> Union[None, dict]:
         """ As a producer, publish a message on a topic/named channel, then 
         retrieve the result and return.
@@ -784,12 +784,12 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                     # Load the data: bytes --> dict
                     data = await sync_to_async(load)(data)
                     # Check that the input data follows the correct format
-                    v = await self._check_input_data(data)
+                    v = await sync_to_async(self._check_input_data)(data)
                     if v == True:
                         # Process the data
                         await self.receive(data)
                     else:
-                        logging.error(
+                        logging.warning(
                             "Input data does not follow the correct format!",
                         )
                 else:
