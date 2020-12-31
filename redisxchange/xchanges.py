@@ -579,8 +579,15 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                 try:
                     # Load the data: bytes --> dict
                     data = await sync_to_async(load)(message_data["data"])
-                    # Process the data
-                    await self.receive(data)
+                    # Check that the input data follows the correct format
+                    v = await self._check_input_data(data)
+                    if v == True:
+                        # Process the data
+                        await self.receive(data)
+                    else:
+                        logging.error(
+                            "Input data does not follow the correct format!",
+                        )
                 except AttributeError as e:
                     print("Exception: ", e)
                 await asyncio.sleep(self.wait_time)
@@ -776,8 +783,15 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                 if not data is None:
                     # Load the data: bytes --> dict
                     data = await sync_to_async(load)(data)
-                    # Process the data
-                    await self.receive(data)
+                    # Check that the input data follows the correct format
+                    v = await self._check_input_data(data)
+                    if v == True:
+                        # Process the data
+                        await self.receive(data)
+                    else:
+                        logging.error(
+                            "Input data does not follow the correct format!",
+                        )
                 else:
                     logging.warning(
                         "The data taken from the queue had value None!"
