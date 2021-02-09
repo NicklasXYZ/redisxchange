@@ -1,10 +1,4 @@
 #------------------------------------------------------------------------------#
-#                     Author     : Nicklas Sindlev Andersen                    #
-#                     Website    : Nicklas.xyz                                 #
-#                     Github     : github.com/NicklasXYZ                       #
-#------------------------------------------------------------------------------#
-#                                                                              #
-#------------------------------------------------------------------------------#
 #               Import packages from the python standard library               #
 #------------------------------------------------------------------------------#
 from datetime import datetime
@@ -14,7 +8,6 @@ import time
 #                          Import local libraries/code                         #
 #------------------------------------------------------------------------------#
 from redisxchange.RedisMessageExchange import (
-    RedisPubSubMessageExchange,
     RedisQueueMessageExchange,
     FutureSet,
     load,
@@ -96,7 +89,7 @@ def test_redis_queue_exchange_1():
 #------------------------------------------------------------------------------#
 async def print_input(i):
     rnd = 2.5
-    await sync_to_async(time.sleep)(rnd)
+    await asyncio.sleep(rnd)
     now = await sync_to_async(datetime.utcnow)()
     print("Value:", i, "Time: ", now)
 

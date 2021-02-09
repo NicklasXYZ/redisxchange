@@ -1,4 +1,4 @@
- #------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------#
 #                     Author     : Nicklas Sindlev Andersen                    #
 #                     Website    : Nicklas.xyz                                 #
 #                     Github     : github.com/NicklasXYZ                       #
@@ -16,8 +16,6 @@ import uuid
 import abc
 from typing import (
     Union,
-    Dict,
-    Any,
 )
 #------------------------------------------------------------------------------#
 #                          Import local libraries/code                         #
@@ -26,10 +24,8 @@ from typing import (
 #------------------------------------------------------------------------------#
 #                      Import third-party libraries: Others                    #
 #------------------------------------------------------------------------------#
-from asgiref.sync import sync_to_async # pip install asgiref
-from asgiref.sync import async_to_sync # pip install asgiref
-import msgpack # pip install msgpack
-import redis   # pip install redis-py
+import msgpack                         # pip install msgpack
+import redis                           # pip install redis-py
 
 
 #------------------------------------------------------------------------------#
@@ -141,7 +137,7 @@ class RedisMessageExchange:
         # Finally, connect to the Redis server
         self.connect()
 
-    def check_base_args(self):
+    def check_base_args(self) -> None:
         """ Check and validate all class arguments on calss instantiation.
 
         Raises:
@@ -342,7 +338,7 @@ class RedisMessageExchange:
                 )
             time.sleep(self.wait_time)
 
-    def check_input_data(self, data: dict) -> bool:
+    def check_input_data(self, data: Union[None, dict]) -> bool:
         """ Check/validate data before it is passed on for further processing. 
 
         Args:
@@ -355,7 +351,7 @@ class RedisMessageExchange:
         # This method should be implemented in a subclass
         return True
 
-    def check_output_data(self, data: dict) -> bool:
+    def check_output_data(self, data: Union[None, dict]) -> bool:
         """ Check/validate data before it is passed on for further processing. 
 
         Args:
@@ -368,7 +364,7 @@ class RedisMessageExchange:
         # This method should be implemented in a subclass
         return True
 
-    def _check_input_data(self, data: dict) -> bool:
+    def _check_input_data(self, data: Union[None, dict]) -> bool:
         """ Run a number of internal and external user-defined checks on the
         given 'data' to determine whether it complies with the required format.
         Make sure that required fields are contained in the  given 'data' passed
@@ -403,7 +399,7 @@ class RedisMessageExchange:
                 " but a boolean value 'True/False' was expected."
             raise TypeError(error)
 
-    def _check_output_data(self, data: dict) -> bool:
+    def _check_output_data(self, data: Union[None, dict]) -> bool:
         """ Run a number of internal and external user-defined checks on the
         given 'data' to determine whether it complies with the required format.
         Make sure that required fields are contained in the given 'data' passed
@@ -438,12 +434,12 @@ class RedisMessageExchange:
             raise TypeError(error)
 
     @abc.abstractmethod
-    async def receive(self):
+    def receive(self):
         # This method should be implemented in a subclass
         pass
 
     @abc.abstractmethod
-    async def handle(self):
+    def handle(self):
         # This method should be implemented in a subclass
         pass
 
@@ -537,7 +533,7 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                 "Try calling the RedisPubSubMessageExchange.connect() method."
             )
 
-    def consume(self) -> Dict[str, Any]:
+    def consume(self) -> dict:
         """ Pick up the next message in the stream...
         """
         message = None
@@ -552,50 +548,50 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
         return message
 
     @abc.abstractmethod
-    async def receive(self, data):
+    def receive(self, data):
         # This method should be implemented in a subclass
         pass
 
     @abc.abstractmethod
-    async def pre_handle(self):
+    def pre_handle(self):
         # This method should be implemented in a subclass
         pass
 
     @abc.abstractmethod
-    async def post_handle(self):
+    def post_handle(self):
         # This method should be implemented in a subclass
         pass
 
-    async def handle(self) -> None:
+    def handle(self) -> None:
         """ Keep handling incoming messages...
 
         Returns:
             None: None.
         """
-        await self.pre_handle()
+        self.pre_handle()
         while True:
-            message_data = await sync_to_async(self.consume)()
+            message_data = self.consume()
             if not message_data is None:
                 try:
                     # Load the data: bytes --> dict
-                    data = await sync_to_async(load)(message_data["data"])
+                    data = load(message_data["data"])
                     # Check that the input data follows the correct format
-                    v = await sync_to_async(self._check_input_data)(data)
+                    v = self._check_input_data(data)
                     if v == True:
                         # Process the data
-                        await self.receive(data)
+                        self.receive(data)
                     else:
                         logging.warning(
                             "Input data does not follow the correct format!",
                         )
                 except AttributeError as e:
-                    print("Exception: ", e)
-                await asyncio.sleep(self.wait_time)
+                    logging.debug("Exception: " + str(e))
+                time.sleep(self.wait_time)
             else:
                 logging.warning(
-                    "The data recived from the message broker had value None!"
+                    "The data recived from the message broker had value None!",
                 )
-        await self.post_handle()
+        self.post_handle()
 
 
 #------------------------------------------------------------------------------#
@@ -663,7 +659,7 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         key = self._get_key(name) 
         return self.client.rpush(key, data)
 
-    def queue_lrange(self, name: str, start = 0, end = -1) -> list:
+    def queue_lrange(self, name: str, start: int = 0, end: int = -1) -> list:
         """ Access and return a certain range of values from the queue. 
 
         Args:
@@ -679,13 +675,14 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         key = self._get_key(name) 
         return self.client.lrange(key, start, end)
 
-    def queue_pop(self, name: str, timeout: Union[None, int] = None):
+    def queue_pop(self, name: str, timeout: int = 0) -> Union[None, bytes]:
         """ Retrieve and remove an item at the head of the queue. 
 
         Args:
             name (str): The name of the queue.
-            timeout (Union[None, str], optional): The max amount of time to.
-                Defaults to 5.
+            timeout (Union[None, int], optional): The max amount of time to
+                block the program flow before continuing. Default is 0 which
+                results in an indefinite block.
 
         Returns:
             dict: The item removed from the queue.
@@ -760,34 +757,34 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         return self.kv_get(name, message)
 
     @abc.abstractmethod
-    async def receive(self, data):
+    def receive(self, data):
         logging.debug(f"Received data: {data}")
         # This method should be inplemented in a subclass
         pass
 
     @abc.abstractmethod
-    async def pre_handle(self):
+    def pre_handle(self):
         pass
 
     @abc.abstractmethod
-    async def post_handle(self):
+    def post_handle(self):
         pass
 
-    async def handle(self) -> None:
+    def handle(self) -> None:
         """ Keep handling incoming messages...
         """
-        await self.pre_handle()
+        self.pre_handle()
         if not self.name is None:
             while True:
-                data = await sync_to_async(self.queue_pop)(self.name)
+                data = self.queue_pop(self.name)
                 if not data is None:
                     # Load the data: bytes --> dict
-                    data = await sync_to_async(load)(data)
+                    data = load(data)
                     # Check that the input data follows the correct format
-                    v = await sync_to_async(self._check_input_data)(data)
+                    v = self._check_input_data(data)
                     if v == True:
                         # Process the data
-                        await self.receive(data)
+                        self.receive(data)
                     else:
                         logging.warning(
                             "Input data does not follow the correct format!",
@@ -801,7 +798,8 @@ class RedisQueueMessageExchange(RedisMessageExchange):
                 "No topic/named channel has been set! No data can thus be " + \
                 "read from the queue."
             )
-        await self.post_handle()
+        self.post_handle()
+
 
 
 #------------------------------------------------------------------------------#
@@ -841,7 +839,7 @@ class FutureSet:
             return None
         while True:
             if len(self._set) >= self._maxsize:
-                await sync_to_async(time.sleep)(self._wait_time)
+                await asyncio.sleep(self._wait_time)
             else:
                 break
         logging.debug(
