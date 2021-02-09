@@ -128,8 +128,6 @@ class RedisMessageExchange:
         # The backoff counter used to increase the waiting time 
         # between re-triees, when trying to re-connect to Redis
         self.backoff = 0
-        # The name of the queue or named channel from which we should process data
-        self.name = None
         # The client connection
         self.client = None
         # Check that the right args were given
@@ -457,7 +455,7 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
         self.pubsub = None
         self.namespaces = [] # (topics/named channels)
         super().__init__(*args, **kwargs)
-    
+
     def _connect(self) -> None:
         """ Connect the Redis client to the Redis KV store and create
         a Redis pub-sub message broker.
@@ -481,7 +479,10 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
         if not self.pubsub is None:
             if not namespace in self.namespaces:
                 self.pubsub.subscribe(namespace)
-                self.namespaces.append(namespace)
+                if self.consume(): # We sucessfully subscribed to the topic
+                    self.namespaces.append(namespace)
+                else:
+                    logging.warning("Subscription to the topic failed!")
             else:
                 logging.warning("Already subscribed to this topic/named channel!")
         else:
@@ -513,6 +514,9 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
         Returns:
             None: None.
         """
+        # Add a unique identifier to the message 
+        self.message_uuid = str(uuid.uuid4())
+        message["message_uuid"] = self.message_uuid
         if not self.client is None:
             while True:
                 try:
@@ -533,7 +537,7 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                 "Try calling the RedisPubSubMessageExchange.connect() method."
             )
 
-    def consume(self) -> dict:
+    def consume(self) -> Union[None, dict]:
         """ Pick up the next message in the stream...
         """
         message = None
@@ -575,6 +579,7 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                 try:
                     # Load the data: bytes --> dict
                     data = load(message_data["data"])
+                    print(data)
                     # Check that the input data follows the correct format
                     v = self._check_input_data(data)
                     if v == True:
@@ -584,7 +589,7 @@ class RedisPubSubMessageExchange(RedisMessageExchange):
                         logging.warning(
                             "Input data does not follow the correct format!",
                         )
-                except AttributeError as e:
+                except (AttributeError, TypeError) as e:
                     logging.debug("Exception: " + str(e))
                 time.sleep(self.wait_time)
             else:
@@ -608,6 +613,8 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         """
         # Set the queue namespace
         self.namespace = namespace
+        # Set the queue name
+        self.name = None
         super().__init__(*args, **kwargs)
     
     def _get_key(self, name: str) -> str:

@@ -1,4 +1,10 @@
 #------------------------------------------------------------------------------#
+#                                 Description                                  #
+#                                                                              #
+# --> One to many type messaging...                                            #
+# An example script showing how to use the pub/sub messaging pattern wrapper   #
+# class implemented in the 'redisxchange' library.                             #
+#------------------------------------------------------------------------------#
 #               Import packages from the python standard library               #
 #------------------------------------------------------------------------------#
 from threading import Thread
@@ -12,7 +18,8 @@ import random
 #                      Import third-party libraries: Others                    #
 #------------------------------------------------------------------------------#
 from redisxchange.xchanges import (
-    RedisQueueMessageExchange,
+    RedisPubSubMessageExchange,
+    load,
 )
 
 
@@ -25,12 +32,15 @@ logging.basicConfig(level = logging.DEBUG)
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
-class Consumer(RedisQueueMessageExchange):
-    def __init__(self, name, **kwargs) -> None:
+class Consumer(RedisPubSubMessageExchange):
+    def __init__(self, receive_topic: str, send_topic: str, **kwargs) -> None:
         # IMPORTANT: Call parent methods!
         super().__init__(**kwargs)
-        # Set the name of the queue from which we want to process messages
-        self.name = name
+        # Set the name of the topic from which we process messages from
+        self.send_topic = send_topic
+        # Set the name of the topic on which we want to publish messages on
+        self.receive_topic = receive_topic
+        self.subscribe(self.receive_topic)
 
     def pre_handle(self) -> None:
         logging.debug("")
@@ -101,8 +111,8 @@ class Consumer(RedisQueueMessageExchange):
         # Set the response in the Redis Key-Value store such that it can be
         # retrieved by the producer that initially sent the message.
         # We use the 'message_uuid' as the key.
-        self.consume_set(
-            message, self.name,
+        self.publish(
+            message, self.send_topic,
         )
 
     def sort_list(self, data: dict) -> None:
@@ -118,8 +128,8 @@ class Consumer(RedisQueueMessageExchange):
         # Set the response in the Redis Key-Value store such that it can be
         # retrieved by the producer that initially sent the message.
         # We use the 'message_uuid' as the key.
-        self.consume_set(
-            message, self.name,
+        self.publish(
+            message, self.send_topic,
         )
 
 
@@ -127,24 +137,31 @@ class Consumer(RedisQueueMessageExchange):
 #------------------------------------------------------------------------------#
 #------------------------------------------------------------------------------#
 class Producer:
-    def __init__(self, name: str) -> None:
-        # Set the name of the queue from which we want to process messages from 
-        self.name = name
+    def __init__(self, receive_topic: str, send_topic: str) -> None:
+        # Set the name of the topic from which we process messages from
+        self.send_topic = send_topic
+        # Set the name of the topic on which we want to publish messages on
+        self.receive_topic = receive_topic
         # Create a connection to the Redis server
-        self.exchange = RedisQueueMessageExchange()#host = "localhost:6377")
+        # Default is host = "localhost:6378"
+        self.exchange = RedisPubSubMessageExchange()
+        self.exchange.subscribe(self.receive_topic)
 
     def start(self) -> None:
         # Example 1. Let the consumer shuffle the given list:
         list_1 = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         logging.debug("")
         logging.debug("Example 1. Input list : " + str(list_1))
-        response_1 = self.exchange.publish_get(
+        self.exchange.publish(
             message = {
                 "type": "shuffle-list",
                 "data": list_1,
             },
-            name = self.name,
+            namespace = self.send_topic,
         )
+        response_1 = self.exchange.consume()
+        # Convert bytes --> dict
+        response_1 = load(response_1["data"])
         if not response_1 is None:
             logging.debug("Example 1. Output list: " + str(response_1["data"]))
         else:
@@ -154,28 +171,37 @@ class Producer:
         list_2 = [9, 8, 7, 6, 5, 4, 3, 2, 1]
         logging.debug("")
         logging.debug("Example 2. Input list : " + str(list_2))
-        response_2 = self.exchange.publish_get(
+        self.exchange.publish(
             message = {
                 "type": "sort-list",
                 "data": list_2,
             },
-            name = self.name,
+            namespace = self.send_topic,
         )
+        response_2 = self.exchange.consume()
+        # Convert bytes --> dict
+        response_2 = load(response_2["data"])
         if not response_2 is None:
             logging.debug("Example 2. Output list: " + str(response_2["data"]))
         else:
             logging.debug("Example 2. Something went wrong. Nothing was returned...")
+        logging.debug("Done... Ctrl+C to exit.")
 
 
 if __name__ == "__main__":       
     # Create and start consumer
-    consumer = Consumer("queue-one")
+    # - Subscribe and listen to topic 'topic-one'
+    # - Publish and respond back on topic 'topic-two'
+    consumer = Consumer("topic-one", "topic-two")
 
     # Create and start producer
-    producer = Producer("queue-one")
+    # - Subscribe and listen to topic 'topic-two'
+    # - Publish and respond back on topic 'topic-one'
+    producer = Producer("topic-two", "topic-one")
 
     # Start the consumer and producer in each of their own threads.
     thr1 = Thread(target = consumer.handle)
     thr1.start()
     thr2 = Thread(target = producer.start)
     thr2.start()
+    #... Runs indefinitely
