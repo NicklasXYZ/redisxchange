@@ -9,7 +9,7 @@ setup(
     author = "Nicklas Sindlev Andersen",
     packages = find_packages(include=["redisxchange"]),
     include_package_data = True,
-    install_requires = ["msgpack", "redis-py", "asgiref"],
+    install_requires = ["msgpack", "redis", "asgiref"],
     version = "0.1",
     license = "MIT",
     description = "",
