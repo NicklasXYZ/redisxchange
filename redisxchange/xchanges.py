@@ -682,6 +682,15 @@ class RedisQueueMessageExchange(RedisMessageExchange):
         key = self._get_key(name) 
         return self.client.lrange(key, start, end)
 
+    def queue_delete(self, name: str) -> None:
+        """ Delete a queue by name. 
+
+        Args:
+            name (str): The name of the queue.
+        """
+        key = self._get_key(name) 
+        self.client.delete(key)
+
     def queue_pop(self, name: str, timeout: int = 0) -> Union[None, bytes]:
         """ Retrieve and remove an item at the head of the queue. 
 
